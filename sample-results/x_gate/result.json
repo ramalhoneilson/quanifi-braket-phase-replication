@@ -1,0 +1,42 @@
+{
+  "num_qubits": 1,
+  "bit_order": "q0_left",
+  "reference_probabilities": {
+    "0": 0.0,
+    "1": 1.0
+  },
+  "paths": {
+    "legacy": {
+      "probabilities": {
+        "0": 3.749399456654644e-33,
+        "1": 1.0
+      },
+      "total_variation_vs_reference": 1.874699728327322e-33,
+      "state_fidelity_vs_reference": 1.0,
+      "state_max_error_after_global_phase_alignment": 6.123233995736766e-17,
+      "process_fidelity_vs_reference": 1.0,
+      "unitary_max_error_after_global_phase_alignment": 6.123233995736766e-17,
+      "unitarity_max_error": 6.123233995736766e-17,
+      "zero_input_column_max_error": 0.0,
+      "counts": {
+        "1": 4096
+      }
+    },
+    "native": {
+      "probabilities": {
+        "0": 0.0,
+        "1": 1.0
+      },
+      "total_variation_vs_reference": 0.0,
+      "state_fidelity_vs_reference": 1.0,
+      "state_max_error_after_global_phase_alignment": 0.0,
+      "process_fidelity_vs_reference": 1.0,
+      "unitary_max_error_after_global_phase_alignment": 6.123233995736766e-17,
+      "unitarity_max_error": 6.123233995736766e-17,
+      "zero_input_column_max_error": 0.0,
+      "counts": {
+        "1": 4096
+      }
+    }
+  }
+}

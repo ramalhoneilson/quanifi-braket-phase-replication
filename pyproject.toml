@@ -1,0 +1,18 @@
+[project]
+name = "quanifi-braket-phase-replication"
+version = "0.1.0"
+description = "A standalone circuit-validation exercise reproducing Quanifi's Braket QASM translation failure"
+requires-python = ">=3.12,<3.13"
+license = "AGPL-3.0-only"
+dependencies = [
+    "amazon-braket-sdk==1.119.0",
+    "amazon-braket-default-simulator==1.39.4",
+    "qiskit==2.3.0",
+    "qiskit-qasm3-import==0.6.0",
+    "openqasm3[parser]==1.0.1",
+    "numpy==2.4.6",
+    "scipy==1.17.1",
+]
+
+[tool.uv]
+package = false

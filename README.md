@@ -1,178 +1,170 @@
-# Quanifi / Braket phase replication exercise
+# Reproduce the Quanifi / Braket circuit problem
 
-This small, standalone experiment reproduces a wrong-result discrepancy in
-Quanifi's historical **OpenQASM 2 → OpenQASM 3 → Amazon Braket** translation.
-It compares the original translation with the workaround using the **same input
-circuit**. It needs no Quanifi/NiFi installation, AWS account, or credentials.
-All quantum execution uses local ideal state-vector simulators.
+This exercise shows a problem we found when translating a quantum circuit
+from OpenQASM 2 (QASM2) to OpenQASM 3 (QASM3) and running it with Amazon Braket.
+QASM is a text format for describing quantum circuits.
 
-The central example is four-qubit Grover search, marking `0110`, with two
-iterations. With the pinned environment, the exact probabilities are:
+We use a four-qubit Grover search circuit. It searches for `0110` and runs two
+Grover iterations. The script compares three ways of running the same circuit:
 
-| Execution path | P(`0110`) | P(`0111`) |
-| --- | ---: | ---: |
-| Qiskit reference | 0.908447265625 | 0.006103515625 |
-| Braket with inlined gate definitions (legacy) | 0.457275390625 | 0.457275390625 |
-| Braket with native gate names (workaround) | 0.908447265625 | 0.006103515625 |
+| Name in the output | What it means |
+| --- | --- |
+| `reference` | The expected result, calculated with Qiskit. |
+| `legacy` | Braket using Quanifi's old translation. This reproduces the problem. |
+| `native` | Braket using Quanifi's corrected translation. This matches the reference. |
 
-The earlier shorthand “50/50 split” describes the two dominant peaks; each is
-actually about 45.73%, with the remaining probability on other states.
+Everything runs on your computer. You do not need AWS credentials or a
+Quanifi/NiFi installation.
 
-## Run it
+## Step 1: Check that you have the tools
 
-Use Python **3.12** and [uv](https://docs.astral.sh/uv/). From an authenticated
-GitHub account with access to this private repository:
+You need Git, [uv](https://docs.astral.sh/uv/getting-started/installation/),
+and access to this private GitHub repository. Ask the repository owner for
+access if you do not have it.
+
+Open a terminal and check:
+
+```sh
+git --version
+uv --version
+```
+
+Both commands should print a version number. If a command is missing, install
+that tool first. The project uses Python 3.12; uv can download it when needed.
+
+## Step 2: Download the repository
+
+Run:
 
 ```sh
 git clone https://github.com/ramalhoneilson/quanifi-braket-phase-replication.git
 cd quanifi-braket-phase-replication
+```
+
+If you already downloaded the repository, open a terminal in its folder and
+continue with Step 3. Run all remaining commands from that folder.
+
+## Step 3: Install the Python packages
+
+Run:
+
+```sh
 uv sync --locked
+```
+
+Wait for it to finish. This installs the package versions saved in the
+repository, so everyone uses the same environment. Internet access is needed
+for this installation.
+
+## Step 4: Run the experiment
+
+Run:
+
+```sh
 uv run --locked python replicate.py --check
 ```
 
-The experiment normally takes seconds. It prints the probability table and
-`Historical expectations: REPRODUCED`. Exit code zero with `--check` means the
-historical discrepancy **and** the successful workaround were reproduced; it
-does not mean the legacy translation is correct.
+The script runs the examples and saves the results. You should see a table
+like this:
 
-To include ordinary shot counts as well:
+```text
+path              P(0110)      P(0111)    TV vs ref
+reference      0.90844727   0.00610352   0.00000000
+legacy         0.45727539   0.45727539   0.45117187
+native         0.90844727   0.00610352   0.00000000
+
+Historical expectations: REPRODUCED
+```
+
+`REPRODUCED` means the script found the original problem and confirmed that
+the corrected translation fixes this example.
+
+## Step 5: Understand the result
+
+`P(0110)` means the probability of measuring `0110`.
+
+- The reference gives about **90.84%** for the state we searched for.
+- The old translation splits the main result: about **45.73%** for `0110`
+  and **45.73%** for `0111`.
+- The corrected translation gives about **90.84%** for `0110`, matching the reference.
+
+The last column measures how different the output probabilities are from the
+reference. Zero means they match.
+
+These probabilities come from exact simulation. Running the command again
+should give the same values, apart from tiny rounding differences.
+
+## Step 6: Open the saved circuits
+
+The last line printed by the script shows the results folder. Open its
+`grover_4q` subfolder. Start with these files:
+
+| File | What to look at |
+| --- | --- |
+| `input.qasm2` | The original circuit in QASM2. |
+| `legacy.qasm3` | The QASM3 program produced by the old translation. |
+| `native.qasm3` | The QASM3 program produced by the corrected translation. |
+| `result.json` | The probabilities and comparison results. |
+
+The `*.state.json` files contain state vectors. The `*.unitary.json` files
+contain the circuit matrices. These are useful if your validation technique
+works with states or matrices.
+
+You can also inspect [sample-results/grover_4q](sample-results/grover_4q)
+without installing anything. It contains a saved, checked run.
+
+## Step 7: Try your own validation technique
+
+1. Load `input.qasm2` into your tool and calculate its expected behavior.
+2. Load `legacy.qasm3` and `native.qasm3`. Record which gate definitions your
+   tool uses to interpret them.
+3. Compare your results with the saved probabilities and matrices. Can your
+   technique detect the difference observed with the old translation?
+4. Try the smaller examples in the `x_gate` and `cx_gate` result folders.
+   Those examples agree with the reference up to global phase. Can your tool
+   confirm that agreement too?
+
+All saved bit strings put **qubit 0 on the left**. For example, `10` means
+qubit 0 is 1 and qubit 1 is 0. Keep this order when comparing results.
+
+A global phase multiplies the whole state by the same complex factor and
+leaves measurement probabilities unchanged. Allow for it when comparing
+matrices. Matching probabilities for one input does not prove that two
+circuits behave the same for every input.
+
+## Optional: Simulate repeated measurements
+
+To also collect 4,096 measurement outcomes for each Braket circuit, run:
 
 ```sh
 uv run --locked python replicate.py --check --shots 4096
 ```
 
-Counts vary: Braket's local sampling here is unseeded. The primary comparisons
-and checks use exact state vectors, so they have no shot noise. To omit full
-operator reconstruction, add `--skip-unitaries`.
+These counts are saved in `result.json`. They vary between runs, but their
+proportions should be close to the exact probabilities.
 
-Without uv, install the exported, hash-pinned dependencies:
+## If something goes wrong
 
-```sh
-python3.12 -m venv .venv
-.venv/bin/python -m pip install --require-hashes -r requirements.lock
-.venv/bin/python replicate.py --check
-```
+- **GitHub says “repository not found”:** check that you have access and are
+  signed in to GitHub through your Git client.
+- **The script says the output folder already exists:** run the basic command
+  from Step 4. It chooses a new folder automatically.
+- **You see `NOT REPRODUCED`:** check that you used `uv sync --locked` and
+  `uv run --locked`. Keep the output folder, including `environment.json`,
+  so the package versions and failed checks can be inspected.
 
-Dependencies download during installation. The replication itself does not call
-AWS services. A GitHub collaborator can also download a ZIP of this repository.
+## What this example establishes
 
-## What the script does
+It reproduces different results from the two translations with the saved
+package versions. It does not identify a single faulty gate or prove that
+Braket violates the QASM2 standard.
 
-1. Builds the original Grover oracle and two iterations, then emits QASM2 in the
-   `{h, cx, rz, x}` basis, just as Quanifi's original builder did.
-2. Parses that QASM2 once as the common reference circuit.
-3. **Legacy path:** exports QASM3 and replaces `include "stdgates.inc";` with
-   Qiskit's actual gate-library text, reproducing the old Braket adapter.
-4. **Native path:** reparses QASM2, transpiles to `{h, cx, rz, x}` at optimization
-   level zero, removes the include and top-level `gphase`, and renames `cx` to
-   Braket's `cnot`. This reproduces Quanifi's workaround.
-5. Runs both QASM3 programs on Braket's local `braket_sv` simulator, comparing
-   exact states and probabilities against Qiskit's `Statevector` reference.
-6. Reconstructs each path's full operator by simulating every computational
-   basis input. The reference comes from Qiskit's `Operator`. It also checks
-   that each reconstructed operator is unitary and its first column agrees
-   with the separate, unmodified zero-input experiment.
+The old translation supplied gate definitions containing `U`, `gphase`, and
+control instructions. The corrected translation uses gates Braket provides
+directly. Finding exactly where their behavior differs is part of the exercise.
 
-Two small controls, `x_gate` and `cx_gate`, are included. In this environment,
-both paths pass their **full-operator** comparisons up to global phase. The
-Grover composition exposes a disagreement that those controls do not reveal.
+For the translation details, matrix format, original sources, and additional
+research questions, see the [technical notes](docs/technical-notes.md).
 
-The basis-input sweep initializes wires using the built-in `U(0,0,0)` for zero
-and `U(pi,0,pi)` for one, avoiding the imported `x` definition. Every wire is
-touched in register order. This is instrumentation for operator extraction;
-the primary Grover probability experiment adds no such preparation gates.
-
-## Inspect the evidence
-
-Each run creates a fresh `results/<UTC timestamp>/` directory. You can choose a
-new directory with `--output results/my-run`; existing directories are never
-overwritten. For each case, it saves:
-
-- `input.qasm2`: the common interchange circuit.
-- `intermediate.qasm3`: Qiskit's export before either adapter treatment.
-- `legacy.qasm3` and `native.qasm3`: the two actual circuit bodies.
-- `reference.state.json`, `legacy.state.json`, `native.state.json`: exact states.
-- Corresponding `*.unitary.json` files: full operators, unless skipped.
-- `result.json`: probabilities, comparison metrics, and optional counts.
-- `simulator.log`: Braket's captured feature-support messages.
-
-The run root contains `summary.json`, the exact `stdgates.inc` used, and
-`environment.json` with package versions and SHA-256 hashes of the script and
-gate library. The script appends `#pragma braket result state_vector` to circuit
-bodies for exact execution, or full-register measurement for counts.
-
-All labels and arrays use **q0 leftmost**: index `i` corresponds to the ordinary
-binary representation of `i`, interpreted as `q0 q1 ...`. Qiskit's state vectors
-and both axes of its operator matrices are explicitly reordered to this
-convention. `0110` is palindromic, so use the asymmetric `cx_gate` operator or a
-non-palindromic input when independently testing your own bit-order handling.
-Complex arrays are JSON objects containing `shape`, `real`, and `imag` arrays;
-reconstruct them as `np.array(data["real"]) + 1j*np.array(data["imag"])`.
-
-`sample-results/` contains a checked run from a clean installation of the
-committed lockfile, including the generated QASM and matrices. Regenerate your
-own results; sample metadata identifies the particular machine used.
-
-## Exercise for circuit-model validation
-
-1. Import `input.qasm2` and model its ideal operator. Check the analytic Grover
-   success probability `sin²(5 asin(1/4)) = 0.908447265625`.
-2. Model the two QASM3 circuit bodies. Supply the definitions/includes and native
-   gate semantics your tool requires, and record those assumptions. A standards
-   model and a model of this Braket interpreter need not give the same answer.
-3. Compare isolated `X`, isolated `CX`, and the complete Grover circuit. Which
-   equivalences can your technique prove, and which counterexamples can it find?
-4. Compare full matrices up to **one common global phase**, then compare output
-   distributions. Equal distributions for one input do not establish operator
-   equivalence. For ideal unitaries, process fidelity
-   `|tr(U_ref† U_test)|² / d²` equals one exactly when they differ only by a
-   single global phase.
-5. Try to reduce the failing circuit. Vary prefixes, wires, and input states;
-   keep bit order explicit. Only attribute the failure to `U`, `gphase`, or
-   control handling after a smaller discriminating experiment supports it.
-
-The saved metrics include total variation distance for the zero-input output,
-state fidelity, process fidelity, and maximum entrywise error after aligning
-one global phase. Deterministic historical checks use tolerance `1e-10`.
-
-## Scope of the conclusion
-
-This replicates an **observable translation/interpreter discrepancy** in the
-pinned versions. The imported definitions already contain `U`, `gphase`, and
-control modifiers; Braket did not spontaneously replace a gate with `gphase`.
-The original investigation associated the failure with phase handling in those
-definitions. This exercise does **not** isolate one faulty primitive or prove a
-blanket violation of the QASM2 standard.
-
-A phase that is global for an isolated operation can become relative when that
-operation is controlled. That is motivation for validating phase-sensitive
-composition, not a proven minimal root cause for this particular failure.
-Dropping top-level global phase is appropriate for the workaround's directly
-sampled circuit. Do not assume that a phase-stripped circuit can later be placed
-under a control without restoring that phase.
-
-The Qiskit reference and both translation paths share a Qiskit front end; they
-are not three completely independent implementations. The analytic success
-probability adds an independent check of the reference output. For broader
-claims, use an additional independent model and specification-level analysis.
-The experiment does not test noise, AWS managed simulators, or QPUs. Its
-conclusion is version-specific; it does not assert the behavior of newer releases.
-
-## Provenance and dependencies
-
-The historical fix is in
-[`quanifi-experiments`, commit `cf38c07`](https://github.com/ramalhoneilson/quanifi-experiments/commit/cf38c07d9f024c99aefe00d748a39a5f4bdd7aa7),
-dated 5 July 2026. It replaced `_inline_stdgates` in both `BraketSimulator` and
-`BraketDevice` with the shared `braket_qasm.py` translator and added
-`test_grover_phase_kickback_peak`. This standalone script extracts that builder
-and translation logic; it does not require importing the original repository.
-
-The direct package versions match the original commit's `uv.lock`: Qiskit
-2.3.0, Qiskit QASM3 importer 0.6.0, Braket SDK 1.119.0, Braket default simulator
-1.39.4, OpenQASM3 1.0.1, NumPy 2.4.6, and SciPy 1.17.1. The new `uv.lock` pins
-the standalone environment's transitive dependencies; those are not claimed to
-be a complete copy of the original Quanifi environment.
-
-Source is licensed under **AGPL-3.0-only**, preserving Quanifi's license. The
-generated `stdgates.inc` retains its upstream Apache-2.0 notice; see
-`THIRD_PARTY_NOTICES.md` and `licenses/Apache-2.0.txt`.
+The code uses the [AGPL-3.0 license](LICENSE). Third-party notices are in
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

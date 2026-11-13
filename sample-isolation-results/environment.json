@@ -1,0 +1,25 @@
+{
+  "python": "3.12.12",
+  "platform": "macOS-26.5.2-arm64-arm-64bit",
+  "packages": {
+    "amazon-braket-sdk": "1.119.0",
+    "amazon-braket-default-simulator": "1.39.4",
+    "qiskit": "2.3.0",
+    "numpy": "2.4.6"
+  },
+  "script_sha256": "c818b2713152356f8cdabe67511a61a3c6fbf8f49596fb588d61bb936e34d7e7",
+  "linalg_utils_sha256": "bc6fb0599a2e30ce303909ecd80bf077838f24d6ead704980b9d4f2b718ba81c",
+  "installed_source_matches_package_record": true,
+  "source_functions": {
+    "multiply_matrix": {
+      "line_start": 94,
+      "line_end": 155
+    },
+    "_apply_single_qubit_gate_small": {
+      "line_start": 158,
+      "line_end": 176
+    }
+  },
+  "upstream_source": "https://github.com/amazon-braket/amazon-braket-default-simulator-python/blob/v1.39.4/src/braket/default_simulator/linalg_utils.py",
+  "source_line_count": 767
+}

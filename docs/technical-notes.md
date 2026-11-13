@@ -4,6 +4,13 @@
 
 These details are optional. Start with the README to run the experiment.
 
+**Update:** the [root-cause investigation](root-cause.md) supersedes the earlier
+phase hypothesis for the reproduced Grover split. The original translation
+activates a faulty numerical update for generic controlled gates in Braket's
+small-circuit simulator. A QASM3-only example, with no phase instructions,
+reproduces the defect. The notes below retain the translation mechanics and
+the general phase caveats, which remain relevant to circuit validation.
+
 ## What the script does
 
 1. Builds the original Grover oracle and two iterations, then emits QASM2 in the
@@ -85,12 +92,13 @@ one global phase. Deterministic historical checks use tolerance `1e-10`.
 
 ## Scope of the conclusion
 
-This replicates an **observable translation/interpreter discrepancy** in the
-pinned versions. The imported definitions already contain `U`, `gphase`, and
-control modifiers; Braket did not spontaneously replace a gate with `gphase`.
-The original investigation associated the failure with phase handling in those
-definitions. This exercise does **not** isolate one faulty primitive or prove a
-blanket violation of the QASM2 standard.
+This replicates an **observable difference between translation/execution
+routes** in the pinned versions. The imported definitions already contain `U`,
+`gphase`, and control modifiers; Braket did not spontaneously replace a gate
+with `gphase`. The historical investigation associated the failure with phase
+handling, but the new isolation identifies a downstream numerical kernel defect
+that explains the observed split. It does not establish a QASM2 translation
+error or a blanket violation of the QASM2 standard.
 
 A phase that is global for an isolated operation can become relative when that
 operation is controlled. That is motivation for validating phase-sensitive

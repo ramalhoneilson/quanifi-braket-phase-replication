@@ -16,6 +16,11 @@ Grover iterations. The script compares three ways of running the same circuit:
 Everything runs on your computer. You do not need AWS credentials or a
 Quanifi/NiFi installation.
 
+**Root cause identified:** the reproduced Grover failure comes from a numerical
+update in Braket's simulator, triggered by the old translation's controlled-gate
+instructions. A smaller QASM3-only example reproduces it without any phase
+instructions. See [the root-cause investigation](docs/root-cause.md).
+
 ## Step 1: Check that you have the tools
 
 You need Git, [uv](https://docs.astral.sh/uv/getting-started/installation/),
@@ -155,13 +160,25 @@ proportions should be close to the exact probabilities.
 
 ## What this example establishes
 
-It reproduces different results from the two translations with the saved
-package versions. It does not identify a single faulty gate or prove that
-Braket violates the QASM2 standard.
+It reproduces different results from the two translation routes with the saved
+package versions. Further investigation isolates the observed split to
+Braket's handling of a controlled gate on certain qubit positions. The simulator
+can write an update into a temporary copy instead of its output buffer.
 
-The old translation supplied gate definitions containing `U`, `gphase`, and
-control instructions. The corrected translation uses gates Braket provides
-directly. Finding exactly where their behavior differs is part of the exercise.
+The old translation activates that execution path. Using Braket's native
+`cnot` avoids it. The earlier phase explanation was a hypothesis; it is not
+the established cause of this reproduced failure.
+
+To reproduce the isolation and a temporary diagnostic repair, run:
+
+```sh
+uv run --locked python isolate.py --check
+```
+
+This command checks the translation stages, finds the first failing circuit
+prefix, and tests a smaller example. It temporarily replaces one function in
+memory, then restores it; no installed package files are changed. See the
+[root-cause report](docs/root-cause.md) for the evidence and its limits.
 
 For the translation details, matrix format, original sources, and additional
 research questions, see the [technical notes](docs/technical-notes.md).

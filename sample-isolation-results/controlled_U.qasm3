@@ -1,0 +1,6 @@
+OPENQASM 3.0;
+qubit[4] q;
+i q[0];
+i q[2];
+x q[1];
+ctrl @ U(pi, 0, pi) q[1], q[3];
